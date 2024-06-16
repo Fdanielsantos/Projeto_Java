@@ -1,106 +1,124 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <ctype.h>
+#include <string.h>
+#include <math.h>
 
-#define MAXSTACK 100
-#define POSTFIXSIZE 100
+// Definindo a estrutura da pilha
+#define MAXPILHA 100
+#define MAXLEN 100
 
-// Estrutura da pilha
 typedef struct {
     int topo;
-    int itens[MAXSTACK];
+    double itens[MAXPILHA];
 } Pilha;
 
-// Funções da pilha
-void inicializar(Pilha *p) {
+// Inicializa a pilha
+void inicializaPilha(Pilha *p) {
     p->topo = -1;
 }
 
+// Verifica se a pilha estÃ¡ cheia
+int estaCheia(Pilha *p) {
+    return p->topo == MAXPILHA - 1;
+}
+
+// Verifica se a pilha estÃ¡ vazia
 int estaVazia(Pilha *p) {
     return p->topo == -1;
 }
 
-int estaCheia(Pilha *p) {
-    return p->topo == MAXSTACK - 1;
+// Empilha um item na pilha
+void empilha(Pilha *p, double valor) {
+    if (!estaCheia(p)) {
+        p->itens[++(p->topo)] = valor;
+    } else {
+        printf("Pilha cheia\n");
+    }
 }
 
-void empilhar(Pilha *p, int valor) {
-    if (estaCheia(p)) {
-        printf("A pilha esta cheia\n");
-        exit(1);
+// Desempilha um item da pilha
+double desempilha(Pilha *p) {
+    if (!estaVazia(p)) {
+        return p->itens[(p->topo)--];
+    } else {
+        printf("Pilha vazia\n");
+        return 0.0;
     }
-    p->itens[++(p->topo)] = valor;
 }
 
-int desempilhar(Pilha *p) {
-    if (estaVazia(p)) {
-        printf("A pilha esta vazia\n");
-        exit(1);
+// Realiza as operaÃ§Ãµes
+void realizaOperacao(Pilha *p, char *op) {
+    double a, b;
+    if (strcmp(op, "+") == 0) {
+        b = desempilha(p);
+        a = desempilha(p);
+        empilha(p, a + b);
+    } else if (strcmp(op, "-") == 0) {
+        b = desempilha(p);
+        a = desempilha(p);
+        empilha(p, a - b);
+    } else if (strcmp(op, "*") == 0) {
+        b = desempilha(p);
+        a = desempilha(p);
+        empilha(p, a * b);
+    } else if (strcmp(op, "/") == 0) {
+        b = desempilha(p);
+        a = desempilha(p);
+        if (b != 0)
+            empilha(p, a / b);
+        else
+            printf("Dividir por zero\n");
+    } else if (strcmp(op, "^") == 0) {
+        b = desempilha(p);
+        a = desempilha(p);
+        empilha(p, pow(a, b));
+    } else if (strcmp(op, "log") == 0) {
+        a = desempilha(p);
+        empilha(p, log10(a));
+    } else if (strcmp(op, "sen") == 0) {
+        a = desempilha(p);
+        empilha(p, sin(a * M_PI / 180.0)); // convertendo para radianos
+    } else if (strcmp(op, "cos") == 0) {
+        a = desempilha(p);
+        empilha(p, cos(a * M_PI / 180.0)); // convertendo para radianos
+    } else {
+        printf("Operacao desconhecida: %s\n", op);
     }
-    return p->itens[(p->topo)--];
 }
 
-// Função para avaliar expressão pós-fixa
-int avaliarPosfixa(char *exp) {
-    Pilha p;
-    inicializar(&p);
-    char *e = exp;
+// Avalia a expressÃ£o pÃ³s-fixada
+void avaliaPosfixada(char *expr) {
+    Pilha pilha;
+    inicializaPilha(&pilha);
 
-    while (*e != '\0') {
-        // Se o caractere for um dígito, empilhe-o
-        if (isdigit(*e)) {
-            int num = 0;
-            // Lidar com números de múltiplos dígitos
-            while (isdigit(*e)) {
-                num = num * 10 + (*e - '0');
-                e++;
-            }
-            empilhar(&p, num);
+    char *token = strtok(expr, " ");
+    while (token != NULL) {
+        if (isdigit(token[0]) || (token[0] == '-' && isdigit(token[1]))) {
+            empilha(&pilha, atof(token));
+        } else {
+            realizaOperacao(&pilha, token);
         }
-        // Se o caractere for um operador, desempilhe dois elementos, aplique o operador e empilhe o resultado
-        else if (*e == '+' || *e == '-' || *e == '*' || *e == '/') {
-            int valor2 = desempilhar(&p);
-            int valor1 = desempilhar(&p);
-            int resultado;
-
-            switch (*e) {
-                case '+':
-                    resultado = valor1 + valor2;
-                    break;
-                case '-':
-                    resultado = valor1 - valor2;
-                    break;
-                case '*':
-                    resultado = valor1 * valor2;
-                    break;
-                case '/':
-                    resultado = valor1 / valor2;
-                    break;
-                default:
-                    printf("Operador incorreto\n");
-                    exit(1);
-            }
-            empilhar(&p, resultado);
-            e++;
-        }
-        // Pular qualquer espaço em branco
-        else {
-            e++;
-        }
+        token = strtok(NULL, " ");
     }
-    // O resultado final será o único elemento restante na pilha
-    return desempilhar(&p);
+
+    if (!estaVazia(&pilha)) {
+        printf("Resultado: %f\n", desempilha(&pilha));
+    } else {
+        printf("Expressao invalida\n");
+    }
 }
 
 int main() {
-    char exp[POSTFIXSIZE];
-    printf("Digite uma expressao posfixa: ");
-    fgets(exp, POSTFIXSIZE, stdin);
+    char expr[MAXLEN];
 
-    // Avaliar a expressão pós-fixa
-    int resultado = avaliarPosfixa(exp);
-    printf("Resultado da avaliacao da expressao posfixa: %d\n", resultado);
+    printf("Digite a expressao pos-fixada: ");
+    fgets(expr, MAXLEN, stdin);
 
-    return 0;
+    // Remove a nova linha do final da string
+    expr[strcspn(expr, "\n")] = '\0';
+
+    printf("Avaliando: %s\n", expr);
+    avaliaPosfixada(expr);
+
+Â Â Â Â returnÂ 0;
 }
-
